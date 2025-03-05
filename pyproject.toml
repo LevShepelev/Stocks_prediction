@@ -1,0 +1,22 @@
+[project]
+name = "mlops_project"
+version = "0.1.0"
+description = "A well-organized MLOps project for training a Stock LSTM model using uv as the package manager"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+
+[tool.uv]
+default-groups = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "torch",
+    "scikit-learn"
+]
+
+dev-dependencies = [
+    "pytest",
+    "flake8",
+    "black"
+]
