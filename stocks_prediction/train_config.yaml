@@ -1,0 +1,46 @@
+# ----------------------------------------------------------------------------
+# Hydra config for our train script
+# ----------------------------------------------------------------------------
+
+data:
+  directory: "../Data/Stocks_parquet" # Path to the folder containing .parquet files
+  start_date: "1990-01-01"
+  seq_length: 30
+  log_info: false # If true, more logging in dataset
+  # (Adjust any other data parameters as needed)
+
+model:
+  # Set 'type' to either "lstm" or "transformer"
+  type: "transformer"
+
+  # -- Only used by LSTM --
+  input_size: 1
+  hidden_size: 50
+  num_layers: 1
+
+  # -- Only used by Transformer --
+  projection_dim: 4
+  num_trans_blocks: 4
+  num_heads: 4
+  ff_dim: 2
+  mlp_units: [256]
+  dropout: 0.1
+
+training:
+  batch_size: 32
+  learning_rate: 0.001
+  epochs: 2
+  num_workers: 2
+  train_val_split: 0.8 # 80% for train, 20% for validation
+
+mlflow:
+  tracking_uri: "file:./mlruns"
+  experiment_name: "stock_regression_experiments"
+
+Logging:
+  level: "INFO"
+
+trainer:
+  max_epochs: 1
+  accelerator: "auto"
+  log_every_n_steps: 100
