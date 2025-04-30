@@ -154,24 +154,15 @@ def load_all_data(
     return all_pairs
 
 
+# dataset.py
 class StockDataset(Dataset):
-    """
-    A simple PyTorch Dataset that wraps a list of (sequence, label) pairs.
-    Each sequence is shape (seq_length,) and label is a scalar. We reshape
-    the sequence into (seq_length, 1) to match 1D input for models like LSTM
-    or TimeSeriesTransformerWithProjection.
-    """
+    def __init__(self, pairs: list[tuple[np.ndarray, np.ndarray]]):
+        x, y = zip(*pairs)  # tuples → two lists
+        self.x = torch.from_numpy(np.stack(x)).float().unsqueeze(-1)
+        self.y = torch.from_numpy(np.stack(y)).float().unsqueeze(-1)
 
-    def __init__(self, pairs: List[Tuple[np.ndarray, np.ndarray]]):
-        super().__init__()
-        self.pairs = pairs
+    def __len__(self):
+        return self.x.size(0)
 
-    def __len__(self) -> int:
-        return len(self.pairs)
-
-    def __getitem__(self, idx: int):
-        seq, lbl = self.pairs[idx]
-        # seq is shape (seq_length,); make it (seq_length, 1) for the model
-        seq_tensor = torch.tensor(seq, dtype=torch.float32).unsqueeze(-1)
-        lbl_tensor = torch.tensor(lbl, dtype=torch.float32).unsqueeze(-1)
-        return seq_tensor, lbl_tensor
+    def __getitem__(self, idx):
+        return self.x[idx], self.y[idx]

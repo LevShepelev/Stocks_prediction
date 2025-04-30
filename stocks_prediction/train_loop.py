@@ -32,12 +32,13 @@ class LightningRegressor(pl.LightningModule):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
-    def training_step(self, batch, batch_idx):
-        features, labels = batch
-        predictions = self(features)
-        loss = self.criterion(predictions, labels)
-        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
-        return loss
+    # lightning module
+    def training_step(self, batch, _):
+        x, y = batch
+        y_hat = self(x)
+        loss = self.criterion(y_hat, y)
+        self.log("train_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+        return None  # don’t hand the tensor back to PL
 
     def validation_step(self, batch, batch_idx):
         features, labels = batch
@@ -91,8 +92,11 @@ def train(cfg: DictConfig):
         train_dataset,
         batch_size=cfg.training.batch_size,
         shuffle=True,
-        num_workers=cfg.training.num_workers,
+        num_workers=0,  # test with a single worker first
+        pin_memory=True,
+        persistent_workers=False,
     )
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=cfg.training.batch_size,
