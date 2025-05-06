@@ -1,8 +1,0 @@
-[core]
-    remote = b2s3
-['remote "b2s3"']
-    url = s3://Stocks-data/Data
-    endpointurl = https://s3.eu-central-003.backblazeb2.com
-    access_key_id = 00372ab6d2d24910000000002
-    secret_access_key = K003azRUqy4EwBH8/6zRdHWQJC+R2RM
-    region = eu-central-003
