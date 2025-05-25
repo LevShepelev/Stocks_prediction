@@ -1,7 +1,19 @@
-import logging
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Universal training entry-point for LSTM, Transformer and FEDformer models.
 
-# Import the refactored data loading code
+Run e.g.:
+    python train_loop.py --config-path conf --config-name train_config
+"""
+
+from __future__ import annotations
+
+import logging
 from pathlib import Path
+from typing import Any, Tuple
+from pytorch_lightning.loggers import MLFlowLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 import hydra
 import mlflow
@@ -11,109 +23,113 @@ from omegaconf import DictConfig, OmegaConf
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 
-from dataset import StockDataset, load_all_data  # <-- import here
+# local imports
+from stocks_prediction.dataset_moex import MoexStockDataset
+from stocks_prediction.models import (
+    StockLSTM,
+    TimeSeriesTransformerWithProjection,
+    LightningFEDformer,  # wrapper we created earlier
+)
 
-# Import your models
-from models import StockLSTM, TimeSeriesTransformerWithProjection
-
-
+# -----------------------------------------------------------------------------#
+#                       Generic regression wrapper (LSTM / Transformer)        #
+# -----------------------------------------------------------------------------#
 class LightningRegressor(pl.LightningModule):
-    """
-    A generic LightningModule wrapper that trains a given PyTorch model
-    for regression using MSE loss and Adam optimizer.
-    """
+    """Wrap any nn.Module that returns (batch, 1) for regression."""
 
-    def __init__(self, model: nn.Module, learning_rate: float = 1e-3):
+    def __init__(self, model: nn.Module, lr: float = 1e-3) -> None:
         super().__init__()
+        self.save_hyperparameters(ignore=["model"])
         self.model = model
-        self.learning_rate = learning_rate
         self.criterion = nn.MSELoss()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         return self.model(x)
 
-    # lightning module
-    def training_step(self, batch, _):
+    def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], _) -> torch.Tensor:  # noqa: D401,E501
         x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
-        self.log("train_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-        return None  # don’t hand the tensor back to PL
-
-    def validation_step(self, batch, batch_idx):
-        features, labels = batch
-        predictions = self(features)
-        loss = self.criterion(predictions, labels)
-        self.log("val_loss", loss, prog_bar=True, on_epoch=True)
+        y_hat = self(x).squeeze(-1)
+        loss = self.criterion(y_hat, y.squeeze(-1))
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
         return loss
 
+    def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], _):
+        x, y = batch
+        y_hat = self(x).squeeze(-1)
+        loss = self.criterion(y_hat, y.squeeze(-1))
+        self.log("val_loss", loss, prog_bar=True, on_epoch=True)
+
     def configure_optimizers(self):
-        return optim.Adam(self.parameters(), lr=self.learning_rate)
+        return optim.Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore
 
 
-@hydra.main(version_base=None, config_path=".", config_name="train_config")
-def train(cfg: DictConfig):
-    """
-    Train function using Hydra for config management,
-    PyTorch Lightning for training, and MLflow for experiment tracking.
+# -----------------------------------------------------------------------------#
+#                            Training entry-point                              #
+# -----------------------------------------------------------------------------#
+@hydra.main(version_base=None, config_path="conf", config_name="train_config")
+def train(cfg: DictConfig) -> None:
+    # 1 ─── Logging -----------------------------------------------------------
+    level_name: str = cfg.get("Logging", {}).get("level", "INFO")
+    logging.basicConfig(
+        level=getattr(logging, level_name),
+        format="%(asctime)s  %(levelname)-8s  %(message)s",
+    )
+    logging.info("Merged Hydra config:\n%s", OmegaConf.to_yaml(cfg))
 
-    This function can train either StockLSTM or TimeSeriesTransformerWithProjection
-    based on the config: cfg.model.type = "lstm" or "transformer".
-    """
-
-    # 1. Logging Setup
-    logging.basicConfig(level=getattr(logging, cfg.Logging.level))
-    logging.info("Hydra Config:\n" + OmegaConf.to_yaml(cfg))
-
-    # 2. MLflow Setup
+    # 2 ─── MLflow ------------------------------------------------------------
     mlflow.set_tracking_uri(cfg.mlflow.tracking_uri)
     mlflow.set_experiment(cfg.mlflow.experiment_name)
 
-    # 3. Load Data
-    try:
-        all_pairs = load_all_data(
-            directory=Path(cfg.data.directory),
-            start_date=cfg.data.start_date,
-            seq_length=cfg.data.seq_length,
-            log_info=cfg.data.log_info,
+    # 3 ─── Dataset -----------------------------------------------------------
+    model_type = cfg.model.type.lower()
+    need_marks = model_type == "fedformer"
+
+    ds_kwargs: dict[str, Any] = dict(
+        root_dir=Path(cfg.data.file),
+        seq_len=cfg.model.seq_len if need_marks else cfg.data.seq_length,
+        horizon=cfg.data.horizon,
+        single_ticker=True,
+        stride=cfg.data.stride,
+        return_marks=need_marks,
+    )
+    if need_marks:
+        ds_kwargs.update(
+            label_len=cfg.model.label_len,
+            pred_len=cfg.model.pred_len,
         )
-    except ValueError as e:
-        logging.error(f"Failed to load data: {e}")
-        return
 
-    full_dataset = StockDataset(all_pairs)
-
-    # Optional: train/val split
+    full_dataset = MoexStockDataset(**ds_kwargs)
     train_size = int(len(full_dataset) * cfg.training.train_val_split)
     val_size = len(full_dataset) - train_size
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    train_ds, val_ds = random_split(full_dataset, [train_size, val_size])
 
     train_loader = DataLoader(
-        train_dataset,
+        train_ds,
         batch_size=cfg.training.batch_size,
         shuffle=True,
-        num_workers=0,  # test with a single worker first
+        num_workers=cfg.training.num_workers,
         pin_memory=True,
-        persistent_workers=False,
     )
-
     val_loader = DataLoader(
-        val_dataset,
+        val_ds,
         batch_size=cfg.training.batch_size,
         shuffle=False,
         num_workers=cfg.training.num_workers,
     )
 
-    # 4. Model Creation
-    model_type = cfg.model.type.lower()
+    # 4 ─── Model -------------------------------------------------------------
     if model_type == "lstm":
-        model_instance = StockLSTM(
-            input_size=cfg.model.input_size,
+        core = StockLSTM(
+            input_size=len(full_dataset.feature_cols),
             hidden_size=cfg.model.hidden_size,
             num_layers=cfg.model.num_layers,
         )
+        lightning_module: pl.LightningModule = LightningRegressor(
+            core, lr=cfg.training.learning_rate
+        )
+
     elif model_type == "transformer":
-        model_instance = TimeSeriesTransformerWithProjection(
+        core = TimeSeriesTransformerWithProjection(
             projection_dim=cfg.model.projection_dim,
             num_trans_blocks=cfg.model.num_trans_blocks,
             num_heads=cfg.model.num_heads,
@@ -121,55 +137,59 @@ def train(cfg: DictConfig):
             mlp_units=cfg.model.mlp_units,
             dropout=cfg.model.dropout,
         )
+        lightning_module = LightningRegressor(core, lr=cfg.training.learning_rate)
+
+    elif model_type == "fedformer":
+        fed_cfg = OmegaConf.create(OmegaConf.to_container(cfg.model, resolve=True))
+        lightning_module = LightningFEDformer(
+            fed_cfg,
+            enc_feat_dim=len(full_dataset.feature_cols),
+            learning_rate=cfg.training.learning_rate,
+        )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")
 
-    lightning_module = LightningRegressor(
-        model=model_instance, learning_rate=cfg.training.learning_rate
+    # 5 ─── Trainer -----------------------------------------------------------
+    mlf_logger = MLFlowLogger(
+    experiment_name=cfg.mlflow.experiment_name,
+    tracking_uri=cfg.mlflow.tracking_uri,
+    run_name=f"{cfg.model.type}_{Path(cfg.data.file).stem}",
+    )   
+    mlf_logger = MLFlowLogger(
+    experiment_name=cfg.mlflow.experiment_name,
+    tracking_uri=cfg.mlflow.tracking_uri,
+    run_name=f"{cfg.model.type}_{Path(cfg.data.file).stem}",
     )
-
-    # 5. PyTorch Lightning Trainer
+    ckpt_cb = ModelCheckpoint(
+    monitor="val_loss",          # tracked metric
+    mode="min",                  # smaller is better
+    save_top_k=1,
+    filename="{epoch:02d}-{val_loss:.4f}",
+    )
     trainer = pl.Trainer(
+        logger=mlf_logger,
+        callbacks=[ckpt_cb],         # ← add callback
         max_epochs=cfg.trainer.max_epochs,
         accelerator=cfg.trainer.accelerator,
         log_every_n_steps=cfg.trainer.log_every_n_steps,
+        gradient_clip_val=0.5, gradient_clip_algorithm="norm"
     )
 
-    # 6. MLflow Logging
-    with mlflow.start_run():
-        # Log hyperparameters
-        mlflow.log_params(
-            {
-                "model_type": cfg.model.type,
-                "input_size": cfg.model.input_size,
-                "hidden_size": cfg.model.hidden_size,
-                "num_layers": cfg.model.num_layers,
-                "learning_rate": cfg.training.learning_rate,
-                "batch_size": cfg.training.batch_size,
-                "epochs": cfg.training.epochs,
-            }
-        )
+    # 6 ─── MLflow run --------------------------------------------------------
 
-        if model_type == "transformer":
-            mlflow.log_params(
-                {
-                    "projection_dim": cfg.model.projection_dim,
-                    "num_trans_blocks": cfg.model.num_trans_blocks,
-                    "num_heads": cfg.model.num_heads,
-                    "ff_dim": cfg.model.ff_dim,
-                    "mlp_units": cfg.model.mlp_units,
-                    "dropout": cfg.model.dropout,
-                }
-            )
+    trainer.fit(lightning_module, train_loader, val_loader)
+    # after training ends
+    best_ckpt = ckpt_cb.best_model_path
+    mlf_logger.experiment.log_artifact(mlf_logger.run_id, best_ckpt)
 
-        trainer.fit(lightning_module, train_loader, val_loader)
+    # save the exact Hydra config used
+    cfg_file = Path(hydra.utils.get_original_cwd()) / "train_run_cfg.yaml"
+    OmegaConf.save(cfg, cfg_file)
+    mlf_logger.experiment.log_artifact(mlf_logger.run_id, cfg_file)
 
-        # Log the final model checkpoint
-        mlflow.pytorch.log_model(
-            pytorch_model=lightning_module, artifact_path="models/lightning_regressor"
-        )
+    # optional: ONNX, TensorRT, plots, csv, …
 
-    logging.info("Training completed successfully.")
+    logging.info("Training completed ✔")
 
 
 if __name__ == "__main__":

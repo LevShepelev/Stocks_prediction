@@ -1,0 +1,26 @@
+type: fedformer
+
+# architecture
+version: Fourier          # or Wavelets
+modes: 32
+mode_select: random
+moving_avg: [12, 24]
+
+# sequence lengths
+seq_len: ${data.seq_length}               # encoder
+label_len: 30             # part reused by decoder
+pred_len: 6               # hours ahead
+
+# embedding & dims
+d_model: 64
+n_heads: 8
+d_ff: 128
+e_layers: 2
+d_layers: 1
+dropout: 0.1
+activation: gelu
+embed: timeF              # time features → 'timeF' embedding
+freq: t                   # 't' = minute-level; 'h' if you ever use hourly data
+
+# ★ NEW : mandatory for FEDformer code
+output_attention: false
