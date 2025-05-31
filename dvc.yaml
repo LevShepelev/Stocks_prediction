@@ -1,0 +1,10 @@
+stages:
+  download:
+    cmd: poetry run python stocks_prediction/dataset/download_moex_data.py --tickers
+      stocks_prediction/conf/companies_list.txt --start 2002-01-01 --end 2024-05-01
+      --out-dir data/raw
+    deps:
+    - stocks_prediction/conf/companies_list.txt
+    - stocks_prediction/dataset/download_moex_data.py
+    outs:
+    - data/raw

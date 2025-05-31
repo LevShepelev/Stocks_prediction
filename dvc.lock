@@ -1,0 +1,21 @@
+schema: '2.0'
+stages:
+  download:
+    cmd: poetry run python stocks_prediction/dataset/download_moex_data.py --tickers
+      stocks_prediction/conf/companies_list.txt --start 2002-01-01 --end 2024-05-01
+      --out-dir data/raw
+    deps:
+    - path: stocks_prediction/conf/companies_list.txt
+      hash: md5
+      md5: 76ddbc0d1b7cfaea17abe0feb9fd4029
+      size: 10173
+    - path: stocks_prediction/dataset/download_moex_data.py
+      hash: md5
+      md5: 3f4f9f5f44a16e54622d104bea3a7737
+      size: 3337
+    outs:
+    - path: data/raw
+      hash: md5
+      md5: 262f9e29d5e51f5b99e3a3ffb09afcba.dir
+      size: 198984049
+      nfiles: 47
