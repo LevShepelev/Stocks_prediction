@@ -1,0 +1,6 @@
+type: "stocklstm"
+
+# -- Only used by LSTM --
+input_size: 1
+hidden_size: 50
+num_layers: 3

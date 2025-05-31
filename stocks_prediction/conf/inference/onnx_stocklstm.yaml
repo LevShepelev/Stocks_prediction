@@ -1,0 +1,14 @@
+model_path: exports/onnx/stocklstm_GAZP_10m_2002-01-01_2025-05-19.onnx
+
+host: 0.0.0.0
+port: 8020
+log_level: info
+
+providers: ["CUDAExecutionProvider", "CPUExecutionProvider"]
+
+# Optional client-side dataset defaults
+seq_len: 60
+horizon: 1
+batch_size: 32
+max_samples: null
+tickers: ["GAZP"]

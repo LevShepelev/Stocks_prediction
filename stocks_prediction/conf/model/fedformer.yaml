@@ -1,17 +1,23 @@
 type: fedformer
 
-# architecture
-version: Fourier          # or Wavelets
-modes: 32
-mode_select: random
-moving_avg: [12, 24]
+# ── choose the core block ──────────────────────────────────────────────────────
+version: Wavelets         # ← set to Wavelets   if you need ONNX export
+modes: 32                 # Fourier-only (ignored by Wavelets)
+mode_select: random       # Fourier-only
 
-# sequence lengths
-seq_len: ${data.seq_length}               # encoder
-label_len: 30             # part reused by decoder
-pred_len: 6               # hours ahead
+# Wavelet-only parameters (ignored by Fourier) – keep default values
+L: 1
+base: legendre
+cross_activation: tanh
 
-# embedding & dims
+moving_avg: [12, 24]      # used in both variants
+
+# ── sequence lengths ───────────────────────────────────────────────────────────
+seq_len:  ${data.seq_length}  # encoder length (keep linked!)
+label_len: 30                 # part of encoder reused by decoder
+pred_len:  ${data.horizon}    # prediction length
+
+# ── network dimensions ─────────────────────────────────────────────────────────
 d_model: 64
 n_heads: 8
 d_ff: 128
@@ -19,8 +25,10 @@ e_layers: 2
 d_layers: 1
 dropout: 0.1
 activation: gelu
-embed: timeF              # time features → 'timeF' embedding
-freq: t                   # 't' = minute-level; 'h' if you ever use hourly data
 
-# ★ NEW : mandatory for FEDformer code
+# ── embeddings ─────────────────────────────────────────────────────────────────
+embed: timeF
+freq:  t                     # 't' => minute-level time features
+
+# ── misc ───────────────────────────────────────────────────────────────────────
 output_attention: false

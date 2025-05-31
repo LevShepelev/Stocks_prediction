@@ -1,0 +1,26 @@
+# -----------------------------------------------------------------------------
+# Model architecture (kept for reference; only convert_and_deploy needs these)
+# -----------------------------------------------------------------------------
+type: stocklstm
+input_size: 1
+hidden_size: 50
+num_layers: 1
+
+# -----------------------------------------------------------------------------
+# Static inference-time shapes
+# -----------------------------------------------------------------------------
+seq_len:     60     # timesteps
+feature_dim: 5      # features per timestep
+max_batch:   32     # Triton dynamic-batch upper bound
+
+# -----------------------------------------------------------------------------
+# Triton server + client defaults  (NEW)
+# -----------------------------------------------------------------------------
+server_url:  localhost:8011   # host:port only
+model_name:  stocklstm
+
+# Client-side dataset/options
+batch_size:  32
+horizon:     1
+max_samples: null             # send whole dataset when null
+tickers:     ["GAZP"]

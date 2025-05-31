@@ -1,0 +1,35 @@
+# ── conf/model/informer.yaml ────────────────────────────────────────────────
+type: informer
+
+# ── data dimensions ─────────────────────────────────────────────────────────
+# number of input features per time-step
+enc_in: 5        # e.g. open,high,low,close,volume
+dec_in: 5        # same as enc_in, since decoder also gets time-features
+c_out: 1         # we predict a single value (close price)
+
+# ── sequence lengths ────────────────────────────────────────────────────────
+seq_len:   ${data.seq_length}  # encoder input length
+label_len:  ${data.seq_length} # decoder “history” length
+pred_len:  ${data.horizon}     # how many steps ahead to forecast
+
+# ── encoder/decoder stacks ─────────────────────────────────────────────────
+e_layers: 2     # number of encoder layers
+d_layers: 1     # number of decoder layers
+distil:   true  # whether to interleave Conv distillation in encoder
+
+# ── attention heads & factor ───────────────────────────────────────────────
+n_heads: 8      # standard multi-head splitting
+factor:  5      # “top-k” factor for ProbAttention
+
+# ── feed-forward & dropout ──────────────────────────────────────────────────
+d_model: 64     # hidden dimension
+d_ff:    128    # feed-forward hidden dim
+dropout: 0.1
+
+# ── embeddings & timing ─────────────────────────────────────────────────────
+embed:  timeF   # time-feature embedding type
+freq:   t       # minute-level features → ‘t’
+
+# ── misc ────────────────────────────────────────────────────────────────────
+activation: gelu
+output_attention: false

@@ -1,0 +1,18 @@
+# Set 'type' to either "lstm" or "transformer"
+type: "transformer"
+
+# -- Only used by LSTM --
+input_size: 1
+hidden_size: 50
+num_layers: 1
+
+# -- Only used by Transformer --
+projection_dim: 4
+num_trans_blocks: 4
+num_heads: 4
+ff_dim: 2
+mlp_units: [256]
+dropout: 0.1
+seq_len:  ${data.seq_length}  # encoder length (keep linked!)
+label_len: 30                 # part of encoder reused by decoder
+pred_len:  ${data.horizon} 
