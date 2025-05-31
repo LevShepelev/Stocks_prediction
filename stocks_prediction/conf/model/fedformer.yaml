@@ -1,21 +1,21 @@
 type: fedformer
 
 # ── choose the core block ──────────────────────────────────────────────────────
-version: Wavelets         # ← set to Wavelets   if you need ONNX export
-modes: 32                 # Fourier-only (ignored by Wavelets)
-mode_select: random       # Fourier-only
+version: Wavelets # ← set to Wavelets   if you need ONNX export
+modes: 32 # Fourier-only (ignored by Wavelets)
+mode_select: random # Fourier-only
 
 # Wavelet-only parameters (ignored by Fourier) – keep default values
 L: 1
 base: legendre
 cross_activation: tanh
 
-moving_avg: [12, 24]      # used in both variants
+moving_avg: [12, 24] # used in both variants
 
 # ── sequence lengths ───────────────────────────────────────────────────────────
-seq_len:  ${data.seq_length}  # encoder length (keep linked!)
-label_len: 30                 # part of encoder reused by decoder
-pred_len:  ${data.horizon}    # prediction length
+seq_len: ${data.seq_length} # encoder length (keep linked!)
+label_len: 30 # part of encoder reused by decoder
+pred_len: ${data.horizon} # prediction length
 
 # ── network dimensions ─────────────────────────────────────────────────────────
 d_model: 64
@@ -28,7 +28,7 @@ activation: gelu
 
 # ── embeddings ─────────────────────────────────────────────────────────────────
 embed: timeF
-freq:  t                     # 't' => minute-level time features
+freq: t # 't' => minute-level time features
 
 # ── misc ───────────────────────────────────────────────────────────────────────
 output_attention: false

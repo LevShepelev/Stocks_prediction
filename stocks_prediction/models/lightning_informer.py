@@ -10,6 +10,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from .Informer import Model as InformerModel  # reference implementation
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,14 +37,10 @@ class LightningInformer(pl.LightningModule):
         learning_rate: float = 1e-3,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters(
-            ignore=["inf_cfg_raw"]
-        )  # keep Lightning logs tidy
+        self.save_hyperparameters(ignore=["inf_cfg_raw"])  # keep Lightning logs tidy
 
         # --- resolve Hydra → plain python ---------------------------------
-        cfg_dict: Dict[str, Any] = OmegaConf.to_container(
-            inf_cfg_raw, resolve=True
-        )
+        cfg_dict: Dict[str, Any] = OmegaConf.to_container(inf_cfg_raw, resolve=True)
         cfg_dict.update(enc_in=enc_feat_dim, dec_in=enc_feat_dim)
         cfg = SimpleNamespace(**cfg_dict)  # the original Informer wants attrs
 
@@ -57,9 +54,7 @@ class LightningInformer(pl.LightningModule):
         # attributes
         self.label_len: int = int(getattr(cfg, "label_len", 0))
         self.pred_len: int = int(getattr(cfg, "pred_len", 1))
-        self.output_attention: bool = bool(
-            getattr(cfg, "output_attention", False)
-        )
+        self.output_attention: bool = bool(getattr(cfg, "output_attention", False))
 
         logger.debug(
             "Informer wrapper initialised (label_len=%d, pred_len=%d, "
@@ -102,9 +97,7 @@ class LightningInformer(pl.LightningModule):
         return self.net(x_enc, x_mark_enc, x_dec, x_mark_dec)
 
     # ─── shared logic for train / val ──────────────────────────────────────
-    def _shared_step(
-        self, batch: Tuple[torch.Tensor, ...], stage: str
-    ) -> torch.Tensor:
+    def _shared_step(self, batch: Tuple[torch.Tensor, ...], stage: str) -> torch.Tensor:
         try:
             if len(batch) == 4:
                 # full tuple with calendar marks
@@ -112,13 +105,9 @@ class LightningInformer(pl.LightningModule):
             elif len(batch) == 2:
                 # dataset without marks → fabricate dummy zeros
                 x_enc, y = batch
-                mark_enc, mark_dec = self._make_dummy_marks(
-                    x_enc, self.pred_len
-                )
+                mark_enc, mark_dec = self._make_dummy_marks(x_enc, self.pred_len)
             else:
-                raise ValueError(
-                    f"Unexpected batch format of length {len(batch)}"
-                )
+                raise ValueError(f"Unexpected batch format of length {len(batch)}")
 
             x_dec = self._build_decoder_input(x_enc)
 
@@ -127,8 +116,8 @@ class LightningInformer(pl.LightningModule):
 
             # y may be [B, 1] (single horizon) or [B, T, 1]
             if y.ndim == 2:
-                y_true = y.squeeze(-1)          # [B]
-                y_pred = y_hat[:, -1, 0]        # last step only
+                y_true = y.squeeze(-1)  # [B]
+                y_pred = y_hat[:, -1, 0]  # last step only
             else:
                 y_true = y[:, -self.pred_len :, :]
                 y_pred = y_hat

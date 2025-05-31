@@ -3,6 +3,7 @@ from typing import List
 import torch
 import torch.nn as nn
 
+
 class MultiHeadSelfAttentionBlock(nn.Module):
     """
     Sub-block that performs multi-head self-attention with a residual connection.
@@ -165,7 +166,8 @@ class TimeSeriesTransformerWithProjection(nn.Module):
     into a higher dimensional embedding before feeding it to the Transformer.
 
     :param projection_dim: Dimensionality of the projection layer output.
-    :param kwargs: Additional parameters for TimeSeriesTransformer (e.g. num_trans_blocks, embed_dim, etc.).
+    :param kwargs: Additional parameters for TimeSeriesTransformer
+    (e.g. num_trans_blocks, embed_dim, etc.).
     """
 
     def __init__(self, projection_dim: int = 4, **kwargs):

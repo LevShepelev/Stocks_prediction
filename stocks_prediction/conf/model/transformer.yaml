@@ -13,6 +13,6 @@ num_heads: 4
 ff_dim: 2
 mlp_units: [256]
 dropout: 0.1
-seq_len:  ${data.seq_length}  # encoder length (keep linked!)
-label_len: 30                 # part of encoder reused by decoder
-pred_len:  ${data.horizon} 
+seq_len: ${data.seq_length} # encoder length (keep linked!)
+label_len: 30 # part of encoder reused by decoder
+pred_len: ${data.horizon}

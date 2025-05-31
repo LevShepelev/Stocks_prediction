@@ -26,6 +26,7 @@ Key features
 * Single public ``predict_and_plot`` function – ideal for reuse from other
   modules or CLI.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,11 +37,16 @@ from urllib.parse import urlparse
 import fire
 import matplotlib.pyplot as plt
 import numpy as np
-from stocks_prediction.dataset.dataset_moex import MoexStockDataset
 from torch.utils.data import DataLoader, Subset
 
+from stocks_prediction.dataset.dataset_moex import MoexStockDataset
+
 # Re‑use Triton helpers (local module)
-from stocks_prediction.inference.triton.client_lstm import _get_triton_client, _run_batch  # type: ignore  # noqa: WPS450
+from stocks_prediction.inference.triton.client_lstm import (
+    _get_triton_client,
+    _run_batch,
+)
+
 
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
@@ -51,6 +57,7 @@ __all__ = ["predict_and_plot"]
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _strip_scheme(url: str) -> str:
     """Return *host:port* part of an URL, dropping the scheme if present."""
@@ -98,6 +105,7 @@ def _ensure_parent_dir(path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Public API (also exposed via Fire)
 # ---------------------------------------------------------------------------
+
 
 def predict_and_plot(  # noqa: PLR0913
     *,
@@ -189,9 +197,8 @@ def predict_and_plot(  # noqa: PLR0913
     plt.plot(truths, label="Ground Truth")
     plt.plot(preds, label="Predictions", alpha=0.7)
 
-    title = (
-        f"{model_name}: Predictions vs Ground Truth ({len(preds)} samples)"
-        + (f" [limited to {max_samples}]" if max_samples else "")
+    title = f"{model_name}: Predictions vs Ground Truth ({len(preds)} samples)" + (
+        f" [limited to {max_samples}]" if max_samples else ""
     )
     plt.title(title)
     plt.xlabel("Sample Index")
@@ -206,6 +213,7 @@ def predict_and_plot(  # noqa: PLR0913
 # ---------------------------------------------------------------------------
 # CLI entry‑point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:  # pragma: no cover
     """Entry‑point for ``python predict_and_plot_triton.py``."""

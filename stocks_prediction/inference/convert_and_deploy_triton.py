@@ -16,13 +16,14 @@ from __future__ import annotations
 
 import logging
 import os
+from importlib.metadata import version
 from pathlib import Path
 from typing import List
 
 import fire
 import tensorrt as trt
-from importlib.metadata import version
 from omegaconf import DictConfig, OmegaConf
+
 
 # ----------------------------------------------------------------------------- #
 # Logging

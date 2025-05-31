@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -25,6 +24,7 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Subset
 
 from stocks_prediction.dataset.dataset_moex import MoexStockDataset
+
 
 ###############################################################################
 # Logging

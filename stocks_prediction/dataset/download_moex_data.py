@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import logging
 import re
 import time
@@ -24,6 +23,7 @@ import apimoex
 import pandas as pd
 import requests
 from tqdm import tqdm
+
 
 INTERVAL = 10  # 10-minute candles, MOEX code “10” :contentReference[oaicite:0]{index=0}
 
@@ -83,9 +83,9 @@ def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s  %(levelname)s  %(message)s",
-        filename="app.log",         # path to your log file
-        filemode="a",               # "a" for append, "w" to overwrite each run
-        encoding="utf-8"            # ensures proper character encoding
+        filename="app.log",  # path to your log file
+        filemode="a",  # "a" for append, "w" to overwrite each run
+        encoding="utf-8",  # ensures proper character encoding
     )
     (out_dir := args.out_dir).mkdir(parents=True, exist_ok=True)
     tickers = parse_ticker_file(args.tickers)

@@ -47,6 +47,7 @@ from stocks_prediction.models import (
     StockLSTM,
 )
 
+
 # --------------------------------------------------------------------------- #
 #                         Generic regression wrapper
 # --------------------------------------------------------------------------- #
@@ -79,7 +80,9 @@ class LightningRegressor(pl.LightningModule):
         self.log(f"{stage}_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
         return loss
 
-    def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], _) -> torch.Tensor:  # noqa: E501
+    def training_step(
+        self, batch: Tuple[torch.Tensor, torch.Tensor], _
+    ) -> torch.Tensor:  # noqa: E501
         return self._shared_step(batch, "train")
 
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], _):
@@ -90,7 +93,7 @@ class LightningRegressor(pl.LightningModule):
     # --------------------------------------------------------------------- #
 
     def configure_optimizers(self):  # noqa: D401
-        optimizer = optim.Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore[arg-type]
+        optimizer = optim.Adam(self.parameters(), lr=self.hparams.lr)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", factor=0.5, patience=5, verbose=True
         )
@@ -138,7 +141,7 @@ def _fetch_and_plot_metrics(
         plt.savefig(fig_path, dpi=150, bbox_inches="tight")
         plt.close()
 
-        # add to MLflow artefacts for convenience --------------------------------
+        # add to MLflow artefacts for convenience --------------------------------
         mlflow.log_artifact(fig_path, artifact_path="plots")
 
 
@@ -166,18 +169,20 @@ def train(cfg: DictConfig) -> None:  # noqa: C901 (core function)
     # Create an MLflow client for later artifact & metric queries ---------- #
     client = MlflowClient(tracking_uri=cfg.mlflow.tracking_uri)
 
-    # record git commit ----------------------------------------------------- #
+    # record git commit ----------------------------------------------------- #
     try:
-        commit_id = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        commit_id = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip()
         # ── record in MLflow so the run is fully reproducible ── #
-        mlflow.set_tag("git_commit", commit_id)     # searchable tag
-        mlflow.log_param("git_commit", commit_id)   # visible in params table
+        mlflow.set_tag("git_commit", commit_id)  # searchable tag
+        mlflow.log_param("git_commit", commit_id)  # visible in params table
         logging.info("Git commit id: %s", commit_id)
 
     except Exception as exc:  # pragma: no cover
         logging.warning("Could not fetch git commit: %s", exc)
 
-    # 3 ── Dataset ---------------------------------------------------------- # ---------------------------------------------------------- #
+    # 3 ── Dataset ---------------------------------------------------------
     model_type = cfg.model.type.lower()
     need_marks = model_type in {"fedformer", "informer", "transformer"}
 
@@ -219,7 +224,9 @@ def train(cfg: DictConfig) -> None:  # noqa: C901 (core function)
             hidden_size=cfg.model.hidden_size,
             num_layers=cfg.model.num_layers,
         )
-        lightning_module: pl.LightningModule = LightningRegressor(core, lr=cfg.training.learning_rate)
+        lightning_module: pl.LightningModule = LightningRegressor(
+            core, lr=cfg.training.learning_rate
+        )
 
     elif model_type == "transformer":
         lightning_module = LightningTimeSeriesTransformer(
@@ -286,15 +293,27 @@ def train(cfg: DictConfig) -> None:  # noqa: C901 (core function)
     mlf_logger.experiment.log_artifact(mlf_logger.run_id, best_ckpt)
 
     # 8 ── Hydrated config backup ------------------------------------------ #
-    cfg_file = Path(get_original_cwd()) / "train_run_cfg.yaml"
-    OmegaConf.save(cfg, cfg_file)
-    mlf_logger.experiment.log_artifact(mlf_logger.run_id, cfg_file)
+    cfg_dict = OmegaConf.to_container(cfg, resolve=True)  # plain Python nested dict
 
-        # 9 ── Export metric plots to *plots/* --------------------------------- #
+    # Flatten the nested dict so MLflow gets simple key-value pairs
+    def _flatten(d, parent_key=""):
+        for k, v in d.items():
+            new_key = f"{parent_key}.{k}" if parent_key else k
+            if isinstance(v, dict):
+                yield from _flatten(v, new_key)
+            else:
+                yield new_key, v
+
+    mlf_logger.experiment.log_params(
+        mlf_logger.run_id,
+        dict(_flatten(cfg_dict)),
+    )
+
+    # 9 ── Export metric plots to *plots/* --------------------------------- #
     plots_dir = Path(get_original_cwd()) / "plots"
-    metric_keys = [            # ←-- use the real names
-        "train_loss_step",     # every batch
-        "train_loss_epoch",    # epoch mean (optional)
+    metric_keys = [  # ←-- use the real names
+        "train_loss_step",  # every batch
+        "train_loss_epoch",  # epoch mean (optional)
         "val_loss_epoch",
         "lr-Adam",
     ]
@@ -313,7 +332,10 @@ def train(cfg: DictConfig) -> None:  # noqa: C901 (core function)
                 export_params=True,
                 input_names=["input"],
                 output_names=["output"],
-                dynamic_axes={"input": {0: "batch", 1: "seq_len"}, "output": {0: "batch"}},
+                dynamic_axes={
+                    "input": {0: "batch", 1: "seq_len"},
+                    "output": {0: "batch"},
+                },
             )
         else:
             batch = next(iter(train_loader))

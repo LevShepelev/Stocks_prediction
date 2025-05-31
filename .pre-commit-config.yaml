@@ -3,7 +3,7 @@ default_language_version:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v5.0.0
     hooks:
       - id: check-yaml
       - id: check-json
@@ -14,25 +14,25 @@ repos:
       - id: mixed-line-ending
 
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 25.1.0
     hooks:
       - id: black
 
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.12.0
+    rev: 6.0.1
     hooks:
       - id: isort
         args: ["--profile", "black"]
 
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.1.0
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.2.0 # keep this ≥ 7.x
     hooks:
       - id: flake8
-        additional_dependencies: [flake8-bugbear]
-        args: ["--ignore=E501"]
+        additional_dependencies:
+          - flake8-pyproject # <--- the missing bit!
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v2.6.2
+    rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
         types_or: [markdown, yaml, toml, json]

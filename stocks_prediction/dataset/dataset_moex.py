@@ -48,9 +48,7 @@ class MoexStockDataset(Dataset):
         self.stride = stride
         self.single_ticker = single_ticker
         self.return_marks = return_marks
-        self.feature_cols = list(
-            features or ("open", "high", "low", "close", "volume")
-        )
+        self.feature_cols = list(features or ("open", "high", "low", "close", "volume"))
         self.target_col = target
 
         # --- dataframe -----------------------------------------------------
@@ -65,7 +63,9 @@ class MoexStockDataset(Dataset):
     # ------------------------------------------------------------------ #
     @staticmethod
     def _load_parquets(directory: Path, tickers: Sequence[str] | None) -> pd.DataFrame:
-        paths = [directory] if directory.is_file() else sorted(directory.glob("*.parquet"))
+        paths = (
+            [directory] if directory.is_file() else sorted(directory.glob("*.parquet"))
+        )
 
         if tickers:
             paths = [p for p in paths if p.stem.split("_")[0].upper() in tickers]
@@ -78,11 +78,7 @@ class MoexStockDataset(Dataset):
             df["begin"] = pd.to_datetime(df["begin"], utc=True)
             dfs.append(df)
 
-        return (
-            pd.concat(dfs)
-            .sort_values(["ticker", "begin"])
-            .reset_index(drop=True)
-        )
+        return pd.concat(dfs).sort_values(["ticker", "begin"]).reset_index(drop=True)
 
     def _make_scaler(self) -> None:
         if self.single_ticker:
@@ -91,11 +87,13 @@ class MoexStockDataset(Dataset):
             float_block = (self.df[self.feature_cols].to_numpy(np.float32) - mean) / std
             self.df[self.feature_cols] = float_block
         else:
-            for tck, grp in self.df.groupby("ticker"):
+            for _, grp in self.df.groupby("ticker"):
                 mean = grp[self.feature_cols].mean().to_numpy()
                 std = grp[self.feature_cols].std().replace(0, 1).to_numpy()
                 idx = grp.index
-                self.df.loc[idx, self.feature_cols] = (grp[self.feature_cols].astype("float32") - mean) / std
+                self.df.loc[idx, self.feature_cols] = (
+                    grp[self.feature_cols].astype("float32") - mean
+                ) / std
 
     # ------------------------------------------------------------------ #
     #  pair generation                                                   #
@@ -134,7 +132,11 @@ class MoexStockDataset(Dataset):
                 if self.return_marks:
                     enc_ts = times.iloc[i : i + self.seq_len]
                     dec_ts = times.iloc[
-                        i + self.seq_len - self.label_len : i + self.seq_len + self.pred_len
+                        i
+                        + self.seq_len
+                        - self.label_len : i
+                        + self.seq_len
+                        + self.pred_len
                     ]
                     m_enc.append(self._time_feats(enc_ts))
                     m_dec.append(self._time_feats(dec_ts))

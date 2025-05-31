@@ -6,14 +6,20 @@ Uses the *same* Hydra YAML as the converter/engine-builder, so shapes and
 server parameters stay in sync.
 """
 from __future__ import annotations
-import logging, sys
+
+import logging
+import sys
 from pathlib import Path
 from typing import List, Optional
 
-import fire, numpy as np, tritonclient.http as httpclient
+import fire
+import numpy as np
+import tritonclient.http as httpclient
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Subset
+
 from stocks_prediction.dataset.dataset_moex import MoexStockDataset
+
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 LOGGER = logging.getLogger(__name__)

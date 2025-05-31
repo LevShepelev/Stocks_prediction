@@ -1,15 +1,18 @@
+from typing import List, Tuple, Union
+
 import pytorch_lightning as pl
 import torch
 from torch import nn, optim
-from typing import List, Tuple, Union
 
-from stocks_prediction.models.time_series_transformer_with_projection import TimeSeriesTransformer
+from stocks_prediction.models.time_series_transformer_with_projection import (
+    TimeSeriesTransformer,
+)
 
 
 class LightningTimeSeriesTransformer(pl.LightningModule):
     """
-    LightningModule wrapper for TimeSeriesTransformer with explicit projection from encoder feature dimension.
-
+    LightningModule wrapper for TimeSeriesTransformer with
+    explicit projection from encoder feature dimension.
     Handles both simple (x, y) and complex (x_enc, mark_enc, mark_dec, y) batch formats,
     and supports ONNX export by accepting multiple inputs.
     """
@@ -66,7 +69,7 @@ class LightningTimeSeriesTransformer(pl.LightningModule):
         else:
             x_enc, mark_enc, mark_dec, y = batch  # ignore marks
             x = x_enc
-        y_hat = self(projection(x) if False else x).squeeze(-1)
+        y_hat = self(self.projection(x) if False else x).squeeze(-1)
         # Actually call forward through projection + transformer
         # But using self(...) goes through our forward
         y_hat = self(x).squeeze(-1)

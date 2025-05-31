@@ -14,8 +14,7 @@ poetry run python inference/onnx_server_fire.py \
 from __future__ import annotations
 
 import logging
-import os
-import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, List
 
@@ -26,6 +25,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from omegaconf import DictConfig, OmegaConf
 from pydantic import BaseModel
+
 
 ###############################################################################
 # Pydantic schemas
@@ -66,14 +66,7 @@ def serve(
     providers: list[str] | None = None,
     log_level: str | None = None,
 ) -> None:
-    """
-    Launch a FastAPI + Uvicorn server for the StockLSTM ONNX model.
-
-    Any CLI flag overrides the same-named key in *config*.  Use underscores
-    (e.g. `--log_level debug`) because Fire maps flags to Python identifiers.
-    """
     cfg: DictConfig = OmegaConf.load(config)
-    # Merge CLI overrides
     for k, v in {
         "model_path": model_path,
         "host": host,
@@ -84,9 +77,6 @@ def serve(
         if v is not None:
             cfg[k] = v
 
-    # --------------------------------------------------------------------- #
-    # Logging
-    # --------------------------------------------------------------------- #
     logging.basicConfig(
         level=getattr(logging, str(cfg.log_level).upper(), logging.INFO),
         format="%(asctime)s %(levelname)-8s %(message)s",
@@ -94,46 +84,42 @@ def serve(
     logger = logging.getLogger(__name__)
     logger.info("Config: %s", OmegaConf.to_yaml(cfg, resolve=True))
 
-    # --------------------------------------------------------------------- #
-    # FastAPI app wired with ONNX session
-    # --------------------------------------------------------------------- #
+    # --------- FASTAPI LIFESPAN HANDLER ---------
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.session = _load_onnx(cfg.model_path, cfg.providers)
+        yield
+        # (Optional: do cleanup here)
+
     app = FastAPI(
         title="StockLSTM ONNX Server",
         description="Serve predictions from a StockLSTM ONNX model",
         version="1.0.0",
+        lifespan=lifespan,  # <-- use lifespan
     )
 
-    @app.on_event("startup")
-    def _startup() -> None:  # noqa: D401
-        nonlocal cfg
-        app.state.session = _load_onnx(cfg.model_path, cfg.providers)
-
     @app.post("/predict", response_model=PredictResponse)
-    def predict(req: PredictRequest) -> PredictResponse:  # noqa: D401
+    def predict(req: PredictRequest) -> PredictResponse:
         try:
             arr = np.asarray(req.input_sequence, dtype=np.float32)
             if arr.ndim == 2:
-                arr = arr[..., np.newaxis]  # add feature dim
+                arr = arr[..., np.newaxis]
             elif arr.ndim != 3:
                 raise ValueError("Input must be a 2-D or 3-D float array")
 
             inp_name = app.state.session.get_inputs()[0].name
             preds = app.state.session.run(None, {inp_name: arr})[0].squeeze()
-
             return PredictResponse(
-                prediction=preds.tolist()
-                if isinstance(preds, np.ndarray)
-                else [float(preds)]
+                prediction=(
+                    preds.tolist() if isinstance(preds, np.ndarray) else [float(preds)]
+                )
             )
         except ValueError as ve:
             raise HTTPException(status_code=422, detail=str(ve)) from ve
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Inference error: %s", exc)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    # --------------------------------------------------------------------- #
-    # Launch Uvicorn
-    # --------------------------------------------------------------------- #
     uvicorn.run(app, host=cfg.host, port=int(cfg.port), log_level=cfg.log_level)
 
 
