@@ -130,7 +130,7 @@ instance_group [ {{ kind: KIND_GPU }} ]
 def convert_and_deploy(
     *,
     onnx: str,
-    config: str = "conf/inference/stocklstm.yaml",
+    config: str = "conf/inference/triton_stocklstm.yaml",
     trt_path: str = "stocklstm.plan",
     model_name: str = "stocklstm",
     repo_dir: str = "model_repository",

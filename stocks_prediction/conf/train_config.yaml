@@ -16,3 +16,4 @@ training:
   learning_rate: 0.001
   num_workers: 8
   train_val_split: 0.8 # 80% for train, 20% for validation
+  n_splits: 5

@@ -1,5 +1,5 @@
 # minimal GPU preset – adjust to taste
-max_epochs: 2 # or whatever you need
+max_epochs: 4 # or whatever you need
 accelerator: auto # 'gpu' also works; Lightning resolves 'auto'
 devices: 1 # omit if you want all visible GPUs
 log_every_n_steps: 10

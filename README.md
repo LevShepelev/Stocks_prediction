@@ -1,14 +1,16 @@
 # 📈 Stock Prediction MLOps Project
 
-This repository contains an **end‑to‑end educational pipeline** for time‑series forecasting of Russian stocks using deep learning (LSTM/GRU) with a modern MLOps stack:
+This repository contains an **end‑to‑end educational pipeline** for time‑series
+forecasting of Russian stocks using deep learning (LSTM/GRU) with a modern MLOps
+stack:
 
-* **PyTorch + PyTorch Lightning** for model authoring and training
-* **Hydra & OmegaConf** for hierarchical configuration management
-* **ONNX + TensorRT** for portable, high‑performance inference
-* **NVIDIA Triton Inference Server** to serve the model in production‐like conditions
-* **Poetry** for dependency management and packaging
-* **pre‑commit** (Black + isort + flake8 + mypy) for code quality
-* **pytest** for unit tests
+- **PyTorch + PyTorch Lightning** for model authoring and training
+- **Hydra & OmegaConf** for hierarchical configuration management
+- **ONNX + TensorRT** for portable, high‑performance inference
+- **NVIDIA Triton Inference Server** to serve the model in production‐like
+  conditions
+- **Poetry** for dependency management and packaging
+- **pre‑commit** (Black + isort + flake8 + mypy) for code quality
 
 ---
 
@@ -40,9 +42,9 @@ This repository contains an **end‑to‑end educational pipeline** for time‑s
 
 > **Prerequisites**
 >
-> * Python ³.11 with CUDA‑enabled GPU & drivers (for training / TRT)
-> * Docker ≥ 24 with NVIDIA Container Runtime
-> * (Optional) CUDA / cuDNN locally for JIT previews
+> - Python ³.11 with CUDA‑enabled GPU & drivers (for training / TRT)
+> - Docker ≥ 24 with NVIDIA Container Runtime
+> - (Optional) CUDA / cuDNN locally for JIT previews
 
 ```bash
 # 1. Clone & install deps
@@ -64,7 +66,8 @@ cp .env.example .env  # then edit values
 
 ## 🚂 Training
 
-Hydra drives the pipeline; all hyper‑parameters live in **`stocks_prediction/conf/`**.
+Hydra drives the pipeline; all hyper‑parameters live in
+**`stocks_prediction/conf/`**.
 
 ```bash
 # Train with the default config
@@ -90,14 +93,8 @@ poetry run python stocks_prediction/train_loop.py \
 
 ## 📤 Export to ONNX
 
-Training script already exports the **best checkpoint** to ONNX (`exports/onnx/`).
-To re‑export any Lightning checkpoint:
-
-```bash
-poetry run python -m stocks_prediction.export_onnx \
-  --ckpt_path outputs/…/model.ckpt \
-  --seq_len 60 --feature_dim 5
-```
+Training script already exports the **best checkpoint** to ONNX
+(`exports/onnx/`).
 
 ---
 
@@ -106,10 +103,7 @@ poetry run python -m stocks_prediction.export_onnx \
 ```bash
 # 1️⃣ Convert ONNX → TensorRT engine and generate Triton directory
 poetry run python convert_and_deploy_triton.py \
-  --onnx exports/onnx/stocklstm_GAZP_10m_2002‑01‑01_2025‑05‑19.onnx \
-  --max-batch 32 \
-  --seq-len 60 \
-  --feature-dim 5 \
+  --onnx exports/onnx/stocklstm_GAZP_10m_2002‑01‑01_2024‑05‑01.onnx \
   --repo-dir ../model_repo/
 
 # The script creates
@@ -138,6 +132,39 @@ docker run --rm --gpus=all --name triton_server \
 
 > Visit **`http://localhost:8011/v2/health/ready`** ⇒ `OK` when ready.
 
+### 🐚 Shell script helper
+
+A reusable helper to (re)start Triton locally is provided in
+**`scripts/start_triton.sh`**:
+
+```bash
+#!/usr/bin/env bash
+# scripts/start_triton.sh
+set -euo pipefail
+
+# Absolute path to repo root
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+
+# Default ports can be overridden via env vars
+HTTP_PORT="${HTTP_PORT:-8011}"
+GRPC_PORT="${GRPC_PORT:-8012}"
+METRICS_PORT="${METRICS_PORT:-8013}"
+
+# Launch (remove --rm if you want persistent logs)
+docker run --rm --gpus=all --name triton_server \
+  -p"${HTTP_PORT}":8000 -p"${GRPC_PORT}":8001 -p"${METRICS_PORT}":8002 \
+  -v "${ROOT_DIR}/model_repo:/models" \
+  nvcr.io/nvidia/tritonserver:25.04-py3 \
+  tritonserver --model-repository=/models "$@"
+```
+
+Make it executable and run:
+
+```bash
+chmod +x scripts/start_triton.sh
+./scripts/start_triton.sh
+```
+
 ---
 
 ## 🔮 Batch Inference & Plotting
@@ -145,23 +172,13 @@ docker run --rm --gpus=all --name triton_server \
 For lightweight local experiments without Triton:
 
 ```bash
-poetry run python stocks_prediction/predict_and_plot.py \
-  --data_dir ../data/raw/ \
-  --ckpt_path outputs/…/best.ckpt
+poetry run python predict_and_plot.py   --data_dir ../data/raw/
 ```
 
 ### 🔌 Triton Client Example
 
-```python
-import numpy as np
-import tritonclient.http as http
-
-client = http.InferenceServerClient(url="localhost:8011")
-X = np.load("sample_batch.npy").astype(np.float32)  # (B, T, F)
-inputs  = http.InferInput("INPUT__0", X.shape, "FP32")
-inputs.set_data_from_numpy(X)
-result = client.infer("stocklstm", inputs=[inputs])
-print(result.as_numpy("OUTPUT__0"))
+```bash
+poetry run python inference/triton/client_lstm.py --data_dir ../data/raw/
 ```
 
 ---
@@ -171,50 +188,31 @@ print(result.as_numpy("OUTPUT__0"))
 | Task                   | Command                                 |
 | ---------------------- | --------------------------------------- |
 | **Format + Lint**      | `poetry run pre-commit run --all-files` |
-| **Type‑check**         | `poetry run mypy stocks_prediction/`    |
-| **Tests**              | `poetry run pytest -q`                  |
 | **Build wheel**        | `poetry build`                          |
 | **Publish (internal)** | `poetry publish --username __token__`   |
 
 ### Continuous Integration
 
-Add in `.github/workflows/ci.yml` (sample provided) to automate lint → test → build.
-
----
-
-## 📊 Monitoring & Logging
-
-* **Weights & Biases** integration is toggled via `wandb.enabled=true` in Hydra.
-* Training logs: `outputs/<run>/train.log` (rotating, JSON).
-* Triton exposes Prometheus metrics at **`:8002/metrics`**; a Grafana dashboard `docker‑compose.monitoring.yml` is included.
-
----
-
-## 🧹 Cleaning Artifacts
-
-```bash
-# Remove Hydra outputs (confirm *first*)
-find outputs -maxdepth 1 -mtime +7 -type d -exec rm -r {} +
-# Purge old TensorBoard event files
-rm -rf lightning_logs/
-```
+Add in `.github/workflows/ci.yml` (sample provided) to automate lint → test →
+build.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** – see [`LICENSE`](LICENSE) for details.
+This project is licensed under the **MIT License** – see [`LICENSE`](LICENSE)
+for details.
 
 ---
 
 ## 🙋‍♂️ FAQ
 
-| Question           | Answer                                                                                                                    |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Dataset source?    | Minute‑level OHLCV data for MOEX tickers, collected via [ISS API](https://iss.moex.com) (script `data/download_moex.py`). |
-| CPU‑only training? | Possible; set `trainer.accelerator=cpu`, but expect ×20 slower.                                                           |
-| Windows supported? | Training works under WSL 2; TensorRT/Triton require Linux.                                                                |
+| Question           | Answer                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Dataset source?    | 10 Minute‑level OHLCV data for MOEX tickers, collected via [ISS API](https://iss.moex.com) (script `data/download_moex.py`). |
+| CPU‑only training? | Possible; set `trainer.accelerator=cpu`, but expect ×20 slower.                                                              |
+| Windows supported? | Training works under WSL 2; TensorRT/Triton require Linux.                                                                   |
 
 ---
 
-> Feel free to open an issue or discussion if you hit a snag. Happy forecasting! \:rocket:
+> Feel free to open an issue or discussion if you hit a snag. Happy forecasting!

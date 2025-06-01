@@ -49,7 +49,7 @@ def _run_batch(cli, model, arr):
 def query_triton(  # noqa: PLR0913
     *,
     data_dir: str,
-    config: str = "conf/inference/stocklstm.yaml",
+    config: str = "conf/inference/triton_stocklstm.yaml",
     server_url: Optional[str] = None,
     model_name: Optional[str] = None,
     seq_len: Optional[int] = None,

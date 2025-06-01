@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from omegaconf import DictConfig, OmegaConf
 
-from .Informer import Model as InformerModel  # reference implementation
+from .informer import Model as InformerModel  # reference implementation
 
 
 logger = logging.getLogger(__name__)

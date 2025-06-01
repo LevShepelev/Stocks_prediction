@@ -59,7 +59,7 @@ def _load_onnx(path: str, providers: list[str]) -> ort.InferenceSession:
 ###############################################################################
 def serve(
     *,
-    config: str = "conf/server/onnx_stocklstm.yaml",
+    config: str = "conf/inference/onnx_stocklstm.yaml",
     model_path: str | None = None,
     host: str | None = None,
     port: int | None = None,

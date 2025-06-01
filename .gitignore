@@ -5,6 +5,15 @@ __pycache__/
 Stocks
 # C extensions
 *.so
+stocks_prediction/exports
+stocks_prediction/mlruns
+stocks_prediction/lightning_logs
+stocks_prediction/mlruns
+stocks_prediction/outputs
+mlruns
+lightning_logs
+exports
+outputs
 
 # Distribution / packaging
 .Python
