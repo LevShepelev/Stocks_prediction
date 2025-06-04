@@ -8,12 +8,15 @@ data:
   seq_length: 60 # 10-minute bars × 60 = 10 hours
   horizon: 6 # predict 1 hour ahead
   stride: 5 # <= tweak; 1 keeps every window
+
 mlflow:
   tracking_uri: "file:./mlruns"
   experiment_name: "stock_regression_experiments"
+  registered_model_name: "MoexForecast"
 training:
   batch_size: 64
   learning_rate: 0.001
   num_workers: 8
   train_val_split: 0.8 # 80% for train, 20% for validation
   n_splits: 5
+  split_cache_dir: "splits"

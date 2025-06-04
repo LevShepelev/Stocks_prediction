@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Final, Iterable
 
 import matplotlib.pyplot as plt
 import mlflow
@@ -13,6 +15,7 @@ from mlflow.tracking import MlflowClient
 
 
 logger = logging.getLogger(__name__)
+_STEM: Final[str] = "moex"
 
 
 def log_git_commit() -> None:
@@ -59,3 +62,35 @@ def fetch_and_plot_metrics(
 
         # add to MLflow artefacts for convenience --------------------------------
         mlflow.log_artifact(fig_path, artifact_path="plots")
+
+
+def log_params_recursive(params: Mapping[str, Any]) -> None:
+    """Flatten → chunk → log; always works even for big configs."""
+    flat = _flatten(params)
+
+    # mlflow limits => chunk manually
+    it = iter(flat.items())
+    while True:
+        chunk = dict(itertools.islice(it))
+        if not chunk:
+            break
+        mlflow.log_params(chunk)
+
+
+def _flatten(
+    d: Mapping[str, Any], parent_key: str = "", sep: str = "."
+) -> dict[str, Any]:
+    """Recursively flattens nested dicts/lists *and* converts everything to str."""
+    items: dict[str, Any] = {}
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, Mapping):
+            items.update(_flatten(v, new_key, sep=sep))
+        else:
+            items[new_key] = str(v)
+    return items
+
+
+def index_files(cache_dir: Path) -> tuple[Path, Path]:
+    """Helper that returns the *(train_file, val_file)* paths."""
+    return cache_dir / f"{_STEM}-train.npy", cache_dir / f"{_STEM}-val.npy"
