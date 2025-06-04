@@ -1,4 +1,4 @@
-# 📈 Stock Prediction MLOps Project
+# 📈 Stock Prediction Project
 
 This repository contains an **end‑to‑end educational pipeline** for time‑series
 forecasting of Russian stocks using deep learning (LSTM/GRU) with a modern MLOps
