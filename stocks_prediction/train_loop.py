@@ -140,6 +140,24 @@ def train(cfg: DictConfig) -> None:  # noqa: C901
         trainer.fit(lightning_module, train_loader, val_loader)
 
         # 7 ─── Persist artefacts ───────────────────────────────────────────── #
+        lightning_module.eval()
+        preds_list, targets_list = [], []
+        with torch.no_grad():
+            for batch in val_loader:
+                # Assumes batch = (x, y) or unpackable
+                x, y = batch
+                output = lightning_module(x)
+                preds_list.append(output.cpu())
+                targets_list.append(y.cpu())
+        preds = torch.cat(preds_list, dim=0)
+        targets = torch.cat(targets_list, dim=0)
+        val_mae = torch.nn.functional.l1_loss(preds, targets).item()
+        val_mse = torch.nn.functional.mse_loss(preds, targets).item()
+        mlflow.log_metric("val_mae", val_mae)
+        mlflow.log_metric("val_mse", val_mse)
+        logger.info(f"Validation MAE: {val_mae:.4f}, MSE: {val_mse:.4f}")
+
+        # 8 ─── Persist artefacts ───────────────────────────────────────────── #
         best_ckpt = ckpt_cb.best_model_path
         client.log_artifact(run_id, ckpt_cb.best_model_path)
         for p in index_files(Path(cfg.training.split_cache_dir or "splits")):
@@ -148,14 +166,15 @@ def train(cfg: DictConfig) -> None:  # noqa: C901
         model_uri = f"runs:/{run_id}/{Path(ckpt_cb.best_model_path).name}"
         mlflow.register_model(model_uri, name=cfg.mlflow.registered_model_name)
 
-        # Log *all* config values flattened for nice MLflow UI
-        # 8 ─── Metric plots ────────────────────────────────────────────────── #
+        # 9 ─── Metric plots ────────────────────────────────────────────────── #
         fetch_and_plot_metrics(
             client=client,
             run_id=mlf_logger.run_id,
             metric_keys=[
                 "train_loss",
                 "val_loss",
+                "val_mae",
+                "val_mse",
                 "epoch",
                 "lr-Adam",
             ],
