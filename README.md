@@ -1,7 +1,7 @@
 # 📈 Stock Prediction Project
 
 This repository contains an **end‑to‑end educational pipeline** for time‑series
-forecasting of Russian stocks using deep learning (LSTM/GRU) with a modern MLOps
+forecasting of Russian stocks using deep learning (LSTM) with a modern MLOps
 stack:
 
 - **PyTorch + PyTorch Lightning** for model authoring and training
@@ -61,8 +61,22 @@ poetry shell
 # 4. Set environment variables (API keys, tracking URLs…)
 cp .env.example .env  # then edit values
 ```
+⬇️ Download Data with DVC
 
----
+This project uses DVC to manage and version the raw OHLCV datasets.
+
+# Ensure DVC is installed in your environment
+poetry run pip install dvc
+
+# Configure your DVC remote (only first time):
+# e.g., an S3 bucket, Azure Blob, Google Drive, etc.
+# dvc remote add -d storage <remote-url>
+
+# Pull the raw and processed data files
+poetry run dvc pull -r storage data/
+
+Note: Replace <remote-url> and storage with your DVC remote name and URL as specified by your project maintainers.
+
 
 ## 🚂 Training
 
@@ -72,13 +86,6 @@ Hydra drives the pipeline; all hyper‑parameters live in
 ```bash
 # Train with the default config
 poetry run python stocks_prediction/train_loop.py
-
-# Override any parameter on the CLI (Hydra syntax)
-poetry run python stocks_prediction/train_loop.py \
-  model=stockgru \
-  datamodule.batch_size=256 \
-  trainer.max_epochs=50
-
 # Log files, checkpoints & TensorBoard go to ./outputs/<DATE_TIME>/
 ```
 
